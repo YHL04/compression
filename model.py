@@ -4,11 +4,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import torchvision
+
 
 class Model(nn.Module):
 
     def __init__(self, N=64, n_basis=64, n_layers=2):
         super(Model, self).__init__()
+        self.resnet = torchvision.models.resnet50(pretrained=True)
 
         # params
         self.N = N
@@ -19,7 +22,6 @@ class Model(nn.Module):
         self.basis = nn.Parameter(torch.randn(N * n_basis,))
 
         # model torso
-        self.layers = nn.ModuleList([nn.Linear(1024, 1024)] for _ in range(n_layers))
         self.last = nn.Linear(1024, n_basis)
 
     def forward(self, x):
@@ -33,8 +35,7 @@ class Model(nn.Module):
         B = x.size(0)
 
         # pass through model
-        for layer in self.layers:
-            x = F.relu(layer(x))
+        x = self.resnet(x)
         x = self.last(x).unflatten(-1)
 
         # get learnable basis
@@ -46,5 +47,7 @@ class Model(nn.Module):
 
         # reconstruct image through linear combination of basis
         img = x * b
-        return img
+
+        # return reconstructed image, and basis coefficients
+        return img, x
 
